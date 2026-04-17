@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Optical Fibre Step-Index Simulator</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f3f6fb;
+      color: #152238;
+    }
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+    }
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    h1, h2, p {
+      margin: 0 0 0.75rem;
+    }
+    .controls {
+      display: grid;
+      gap: 0.8rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    label {
+      display: grid;
+      gap: 0.4rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .value {
+      font-weight: 400;
+      color: #294b7a;
+    }
+    .metrics {
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    }
+    .metric {
+      background: #f7faff;
+      border: 1px solid #d9e7ff;
+      border-radius: 8px;
+      padding: 0.7rem;
+    }
+    .metric strong {
+      display: block;
+      font-size: 1.1rem;
+      color: #0e4da4;
+    }
+    #fibreSvg {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid #dbe7fb;
+      background: #ebf3ff;
+    }
+    .note {
+      font-size: 0.95rem;
+      color: #344d72;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h1>Optical Fibre Multipath Dispersion Simulator</h1>
+      <p>Adjust the refractive index step between core and cladding to see how path length spread changes in a step-index fibre.</p>
+      <div class="controls">
+        <label>
+          Core refractive index n<sub>core</sub>
+          <span id="coreValue" class="value"></span>
+          <input id="coreIndex" type="range" min="1.40" max="1.60" step="0.001" value="1.48" />
+        </label>
+        <label>
+          Step index Δn = n<sub>core</sub> &minus; n<sub>cladding</sub>
+          <span id="stepValue" class="value"></span>
+          <input id="stepIndex" type="range" min="0.001" max="0.08" step="0.001" value="0.02" />
+        </label>
+        <label>
+          Fibre length (km)
+          <span id="lengthValue" class="value"></span>
+          <input id="lengthKm" type="range" min="0.1" max="10" step="0.1" value="2" />
+        </label>
+        <label>
+          Number of ray paths
+          <span id="rayValue" class="value"></span>
+          <input id="rayCount" type="range" min="2" max="20" step="1" value="10" />
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Ray paths in the fibre core</h2>
+      <svg id="fibreSvg" viewBox="0 0 1000 260" role="img" aria-label="Optical fibre ray path simulation"></svg>
+      <p class="note" id="explanation"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Calculated effects on information transfer</h2>
+      <div class="metrics">
+        <div class="metric"><span>Cladding index n<sub>cladding</sub></span><strong id="cladMetric"></strong></div>
+        <div class="metric"><span>Maximum internal angle</span><strong id="angleMetric"></strong></div>
+        <div class="metric"><span>Arrival-time spread</span><strong id="spreadMetric"></strong></div>
+        <div class="metric"><span>Estimated max bit rate</span><strong id="rateMetric"></strong></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const c = 299792458;
+    const MAX_DISPLAYABLE_RATE_MBPS = 100000;
+    const MIN_RAY_ANGLE = 1e-5;
+    const MAX_ASIN_INPUT = 0.999999;
+    const MIN_CLADDING_INDEX = 1.001;
+    const NYQUIST_SPREAD_FACTOR = 2;
+    const coreInput = document.getElementById('coreIndex');
+    const stepInput = document.getElementById('stepIndex');
+    const lengthInput = document.getElementById('lengthKm');
+    const rayInput = document.getElementById('rayCount');
+
+    const coreValue = document.getElementById('coreValue');
+    const stepValue = document.getElementById('stepValue');
+    const lengthValue = document.getElementById('lengthValue');
+    const rayValue = document.getElementById('rayValue');
+
+    const cladMetric = document.getElementById('cladMetric');
+    const angleMetric = document.getElementById('angleMetric');
+    const spreadMetric = document.getElementById('spreadMetric');
+    const rateMetric = document.getElementById('rateMetric');
+    const explanation = document.getElementById('explanation');
+
+    const svg = document.getElementById('fibreSvg');
+
+    function formatRate(value) {
+      if (!isFinite(value) || value > MAX_DISPLAYABLE_RATE_MBPS) return '>100 Gbit/s';
+      if (value >= 1000) return `${(value / 1000).toFixed(2)} Gbit/s`;
+      return `${value.toFixed(2)} Mbit/s`;
+    }
+
+    function buildRayPath(angle, top, bottom, startX, endX, centerY) {
+      if (angle < MIN_RAY_ANGLE) {
+        return `M ${startX} ${centerY} L ${endX} ${centerY}`;
+      }
+
+      const tan = Math.tan(angle);
+      let x = startX;
+      let y = centerY;
+      let dir = -1;
+      const points = [`M ${x} ${y}`];
+
+      while (x < endX) {
+        const targetY = dir < 0 ? top : bottom;
+        const dy = Math.abs(targetY - y);
+        const dx = dy / tan;
+
+        if (x + dx >= endX) {
+          y += dir * (endX - x) * tan;
+          x = endX;
+          points.push(`L ${x} ${y}`);
+        } else {
+          x += dx;
+          y = targetY;
+          points.push(`L ${x} ${y}`);
+          dir *= -1;
+        }
+      }
+
+      return points.join(' ');
+    }
+
+    function render() {
+      const nCore = Number(coreInput.value);
+      const deltaInput = Number(stepInput.value);
+      const maxDelta = Math.max(0, nCore - MIN_CLADDING_INDEX);
+      const delta = Math.min(deltaInput, maxDelta);
+      if (delta !== deltaInput) {
+        stepInput.value = delta.toFixed(3);
+      }
+      const nClad = nCore - delta;
+      const length = Number(lengthInput.value) * 1000;
+      const rayCount = Number(rayInput.value);
+
+      const na = Math.sqrt(Math.max(0, nCore * nCore - nClad * nClad));
+      const thetaMax = Math.asin(Math.min(MAX_ASIN_INPUT, na / nCore));
+
+      const times = [];
+      for (let i = 0; i < rayCount; i += 1) {
+        const fraction = i / (rayCount - 1);
+        const theta = thetaMax * fraction;
+        times.push((nCore * length) / (c * Math.cos(theta)));
+      }
+
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+      const spread = maxTime - minTime;
+      const maxBitRateMbps = spread > 0 ? (1 / (NYQUIST_SPREAD_FACTOR * spread)) / 1e6 : Number.POSITIVE_INFINITY;
+
+      coreValue.textContent = nCore.toFixed(3);
+      stepValue.textContent = delta.toFixed(3);
+      lengthValue.textContent = `${Number(lengthInput.value).toFixed(1)} km`;
+      rayValue.textContent = String(rayCount);
+
+      cladMetric.textContent = nClad.toFixed(3);
+      angleMetric.textContent = `${(thetaMax * 180 / Math.PI).toFixed(2)}°`;
+      spreadMetric.textContent = `${(spread * 1e9).toFixed(3)} ns`;
+      rateMetric.textContent = formatRate(maxBitRateMbps);
+      explanation.textContent = `Reducing Δn makes the core and cladding indices more similar, which lowers the maximum internal ray angle. Rays follow more similar path lengths, so pulse spreading falls and the possible data rate rises.`;
+
+      const top = 70;
+      const bottom = 190;
+      const startX = 30;
+      const endX = 970;
+      const centerY = (top + bottom) / 2;
+
+      const lines = [];
+      for (let i = 0; i < rayCount; i += 1) {
+        const fraction = i / (rayCount - 1);
+        const theta = thetaMax * fraction;
+        const hue = 210 + Math.round((1 - fraction) * 40);
+        lines.push(`<path d="${buildRayPath(theta, top, bottom, startX, endX, centerY)}" fill="none" stroke="hsl(${hue}, 80%, 40%)" stroke-width="2" />`);
+      }
+
+      svg.innerHTML = `
+        <rect x="20" y="35" width="960" height="190" rx="8" fill="#c5dcff"></rect>
+        <rect x="20" y="${top}" width="960" height="${bottom - top}" rx="6" fill="#ffffff"></rect>
+        <text x="28" y="55" fill="#1d3f6b" font-size="18" font-family="Arial">Cladding (n = ${nClad.toFixed(3)})</text>
+        <text x="28" y="145" fill="#1d3f6b" font-size="18" font-family="Arial">Core (n = ${nCore.toFixed(3)})</text>
+        <text x="28" y="218" fill="#1d3f6b" font-size="18" font-family="Arial">Cladding (n = ${nClad.toFixed(3)})</text>
+        ${lines.join('')}
+      `;
+    }
+
+    [coreInput, stepInput, lengthInput, rayInput].forEach((input) => {
+      input.addEventListener('input', render);
+    });
+
+    render();
+  </script>
+</body>
+</html>
