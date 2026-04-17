@@ -12,7 +12,7 @@ estimated maximum data rate.
 ### What the simulator shows
 
 - Core index (`n_core`)
-- Step index (`Δn = n_core - n_cladding`)
+- Step index (`Δn = core index - cladding index`)
 - Fibre length
 - Multiple ray paths in the core
 - Arrival-time spread from multipath dispersion
