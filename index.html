@@ -202,7 +202,7 @@
 
       const times = [];
       for (let i = 0; i < rayCount; i += 1) {
-        const fraction = rayCount === 1 ? 0 : i / (rayCount - 1);
+        const fraction = i / (rayCount - 1);
         const theta = thetaMax * fraction;
         times.push((nCore * length) / (c * Math.cos(theta)));
       }
@@ -231,7 +231,7 @@
 
       const lines = [];
       for (let i = 0; i < rayCount; i += 1) {
-        const fraction = rayCount === 1 ? 0 : i / (rayCount - 1);
+        const fraction = i / (rayCount - 1);
         const theta = thetaMax * fraction;
         const hue = 210 + Math.round((1 - fraction) * 40);
         lines.push(`<path d="${buildRayPath(theta, top, bottom, startX, endX, centerY)}" fill="none" stroke="hsl(${hue}, 80%, 40%)" stroke-width="2" />`);
