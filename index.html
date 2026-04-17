@@ -184,6 +184,7 @@
     const PARTIAL_OVERLAP_RATE_FRACTION = 0.75;
     const PHASE_SPREAD_FACTOR = 0.7;
     const BASE_ANIMATION_PERIOD_SECONDS = 2.4;
+    const MIN_VISUAL_BIT_PERIOD_SECONDS = 1e-9;
 
     const coreInput = document.getElementById('coreIndex');
     const stepInput = document.getElementById('stepIndex');
@@ -260,6 +261,7 @@
       const bitRateMbps = Number(bitRateInput.value);
       const bitPeriod = 1 / (bitRateMbps * 1e6);
       const delays = state.times.map((t) => t - state.minTime);
+      // Approximate modal spread as a Gaussian pulse width and prevent unrealistically narrow pulses.
       const pulseSigma = Math.max(state.spread / SPREAD_TO_SIGMA_DIVISOR, bitPeriod * MIN_SIGMA_FRACTION_OF_BIT_PERIOD);
       const bitCount = bits.length;
       const sampleCount = 700;
@@ -341,7 +343,7 @@
       }
 
       const elapsed = (performance.now() - txStartTimestamp) / 1000;
-      const currentBit = Math.floor(elapsed / Math.max(1e-9, bitPeriod));
+      const currentBit = Math.floor(elapsed / Math.max(MIN_VISUAL_BIT_PERIOD_SECONDS, bitPeriod));
       if (currentBit >= 0 && currentBit < bits.length) {
         signalStatus.textContent = `${baseStatus} Now transmitting bit ${currentBit + 1} of ${bits.length}.`;
       } else {
@@ -368,7 +370,7 @@
           pulse,
           length,
           factor: Number(path.getAttribute('data-time-factor')) || 1,
-          phase: (index / Math.max(1, paths.length)) * PHASE_SPREAD_FACTOR
+          phase: (index / Math.max(1, paths.length - 1)) * PHASE_SPREAD_FACTOR
         });
       });
     }
