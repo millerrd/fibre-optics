@@ -6,13 +6,13 @@ Interactive optical fibre simulation for AQA A level Physics.
 
 This repository now contains a static web app (`index.html`) that runs on GitHub Pages.
 It models multipath dispersion in a **step-index optical fibre** and shows how reducing the
-refractive index step (`delta n` between core and cladding) reduces pulse spreading and increases
+refractive index step (`Δn` between core and cladding) reduces pulse spreading and increases
 estimated maximum data rate.
 
 ### What the simulator shows
 
 - Core index (`n_core`)
-- Step index (`delta n = n_core - n_cladding`)
+- Step index (`Δn = n_core - n_cladding`)
 - Fibre length
 - Multiple ray paths in the core
 - Arrival-time spread from multipath dispersion
