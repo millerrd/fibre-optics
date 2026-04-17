@@ -94,12 +94,6 @@
       font-size: 0.95rem;
       color: #344d72;
     }
-    .subtle {
-      font-size: 0.92rem;
-      color: #496387;
-      margin-top: -0.35rem;
-      margin-bottom: 0.8rem;
-    }
     .status {
       margin-top: 0.4rem;
       font-size: 0.95rem;
@@ -130,7 +124,6 @@
           <input id="rayCount" type="range" min="2" max="20" step="1" value="10" />
         </label>
       </div>
-      <p class="subtle">Fibre length is fixed at 10.0 km.</p>
     </section>
 
     <section class="panel">
@@ -187,6 +180,7 @@
     const RECEIVED_LEVEL_CLAMP = 1.8;
     const PARTIAL_OVERLAP_RATE_FRACTION = 0.75;
     const BASE_ANIMATION_PERIOD_SECONDS = 2.4;
+    // Short pause at the end of each cycle so all pulses relaunch together from the input face.
     const ANIMATION_RESET_PAUSE_SECONDS = 0.55;
     const MIN_VISUAL_BIT_PERIOD_SECONDS = 1e-9;
 
