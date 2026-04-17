@@ -1,6 +1,6 @@
 # fibre-optics
 
-Interactive optical fibre simulation for AQA A level Physics.
+Interactive optical fibre simulation for AQA A-level Physics.
 
 ## GitHub Pages web app
 
