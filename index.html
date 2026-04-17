@@ -125,6 +125,9 @@
 
   <script>
     const c = 299792458;
+    const MAX_DISPLAYABLE_RATE_MBPS = 100000;
+    const MIN_RAY_ANGLE = 1e-5;
+    const MAX_ASIN_INPUT = 0.999999;
     const coreInput = document.getElementById('coreIndex');
     const stepInput = document.getElementById('stepIndex');
     const lengthInput = document.getElementById('lengthKm');
@@ -144,13 +147,13 @@
     const svg = document.getElementById('fibreSvg');
 
     function formatRate(value) {
-      if (!isFinite(value) || value > 100000) return '>100 Gbit/s';
+      if (!isFinite(value) || value > MAX_DISPLAYABLE_RATE_MBPS) return '>100 Gbit/s';
       if (value >= 1000) return `${(value / 1000).toFixed(2)} Gbit/s`;
       return `${value.toFixed(2)} Mbit/s`;
     }
 
     function buildRayPath(angle, top, bottom, startX, endX, centerY) {
-      if (angle < 1e-5) {
+      if (angle < MIN_RAY_ANGLE) {
         return `M ${startX} ${centerY} L ${endX} ${centerY}`;
       }
 
@@ -193,7 +196,7 @@
       const rayCount = Number(rayInput.value);
 
       const na = Math.sqrt(Math.max(0, nCore * nCore - nClad * nClad));
-      const thetaMax = Math.asin(Math.min(0.999999, na / nCore));
+      const thetaMax = Math.asin(Math.min(MAX_ASIN_INPUT, na / nCore));
 
       const times = [];
       for (let i = 0; i < rayCount; i += 1) {
