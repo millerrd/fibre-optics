@@ -172,7 +172,7 @@
     const MIN_RAY_ANGLE = 1e-5;
     const MAX_ASIN_INPUT = 0.999999;
     const MIN_CLADDING_INDEX = 1.001;
-    const FIXED_FIBRE_LENGTH_METRES = 10000;
+    const FIXED_FIBRE_LENGTH_METERS = 10000;
     const NYQUIST_SPREAD_FACTOR = 2;
     const SPREAD_TO_SIGMA_DIVISOR = 5;
     const MIN_SIGMA_FRACTION_OF_BIT_PERIOD = 0.08;
@@ -207,6 +207,7 @@
     const signalSvg = document.getElementById('signalSvg');
 
     let rayAnimations = [];
+    let maxRayTimeFactor = 1;
     let latestState = null;
     let txStartTimestamp = performance.now();
 
@@ -351,6 +352,7 @@
       const paths = fibreSvg.querySelectorAll('path[data-ray="1"]');
       const pulseLayer = fibreSvg.querySelector('#pulseLayer');
       rayAnimations = [];
+      maxRayTimeFactor = 1;
       pulseLayer.innerHTML = '';
 
       paths.forEach((path, index) => {
@@ -365,9 +367,13 @@
           path,
           pulse,
           length,
+          // Relative transit-time factor (1 = fastest mode) used to animate growing modal delay.
           factor: Number(path.getAttribute('data-time-factor')) || 1
         });
       });
+      maxRayTimeFactor = rayAnimations.length > 0
+        ? Math.max(...rayAnimations.map((ray) => ray.factor))
+        : 1;
     }
 
     function renderFibreGraphic(state) {
@@ -408,7 +414,7 @@
       }
 
       const nClad = nCore - delta;
-      const length = FIXED_FIBRE_LENGTH_METRES;
+      const length = FIXED_FIBRE_LENGTH_METERS;
       const rayCount = Number(rayInput.value);
       const bitRateMbps = Number(bitRateInput.value);
 
@@ -457,10 +463,7 @@
 
     function animate() {
       const now = performance.now() / 1000;
-      const maxFactor = rayAnimations.length > 0
-        ? Math.max(...rayAnimations.map((ray) => ray.factor))
-        : 1;
-      const travelWindow = BASE_ANIMATION_PERIOD_SECONDS * maxFactor;
+      const travelWindow = BASE_ANIMATION_PERIOD_SECONDS * maxRayTimeFactor;
       const cycle = travelWindow + ANIMATION_RESET_PAUSE_SECONDS;
       const elapsed = now % cycle;
 
