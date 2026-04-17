@@ -180,7 +180,7 @@
     const RECEIVED_LEVEL_CLAMP = 1.8;
     const PARTIAL_OVERLAP_RATE_FRACTION = 0.75;
     const BASE_ANIMATION_PERIOD_SECONDS = 2.4;
-    // Short pause at the end of each cycle so all pulses relaunch together from the input face.
+    // Brief visual reset pause (~0.5 s) so relaunch events are easy to spot without slowing the loop too much.
     const ANIMATION_RESET_PAUSE_SECONDS = 0.55;
     const MIN_VISUAL_BIT_PERIOD_SECONDS = 1e-9;
 
@@ -464,12 +464,13 @@
     function animate() {
       const now = performance.now() / 1000;
       const travelWindow = BASE_ANIMATION_PERIOD_SECONDS * maxRayTimeFactor;
-      const cycle = travelWindow + ANIMATION_RESET_PAUSE_SECONDS;
-      const elapsed = now % cycle;
+      const totalCycleDuration = travelWindow + ANIMATION_RESET_PAUSE_SECONDS;
+      const elapsed = now % totalCycleDuration;
 
       for (let i = 0; i < rayAnimations.length; i += 1) {
         const ray = rayAnimations[i];
         const period = BASE_ANIMATION_PERIOD_SECONDS * ray.factor;
+        // During reset pause, keep pulses at the launch point so all modes restart together.
         const progress = elapsed >= travelWindow ? 0 : Math.min(elapsed / period, 1);
         const point = ray.path.getPointAtLength(progress * ray.length);
         ray.pulse.setAttribute('cx', point.x.toFixed(2));
