@@ -180,6 +180,7 @@
     const SPREAD_TO_SIGMA_DIVISOR = 5;
     const MIN_SIGMA_FRACTION_OF_BIT_PERIOD = 0.08;
     const MAX_RECEIVED_LEVEL_SCALE = 1.4;
+    const RECEIVED_LEVEL_CLAMP = 1.8;
     const PARTIAL_OVERLAP_RATE_FRACTION = 0.75;
     const PHASE_SPREAD_FACTOR = 0.7;
     const BASE_ANIMATION_PERIOD_SECONDS = 2.4;
@@ -259,7 +260,7 @@
       const bitRateMbps = Number(bitRateInput.value);
       const bitPeriod = 1 / (bitRateMbps * 1e6);
       const delays = state.times.map((t) => t - state.minTime);
-      const sigma = Math.max(state.spread / SPREAD_TO_SIGMA_DIVISOR, bitPeriod * MIN_SIGMA_FRACTION_OF_BIT_PERIOD);
+      const pulseSigma = Math.max(state.spread / SPREAD_TO_SIGMA_DIVISOR, bitPeriod * MIN_SIGMA_FRACTION_OF_BIT_PERIOD);
       const bitCount = bits.length;
       const sampleCount = 700;
       const tEnd = (bitCount + 2) * bitPeriod + state.spread * 1.3;
@@ -276,12 +277,12 @@
           const launchTime = b * bitPeriod;
           for (let m = 0; m < delays.length; m += 1) {
             const dt = t - launchTime - delays[m];
-            receivedLevel += Math.exp(-0.5 * (dt / sigma) ** 2);
+            receivedLevel += Math.exp(-0.5 * (dt / pulseSigma) ** 2);
           }
         }
 
         receivedLevel /= Math.max(1, delays.length);
-        timeline.push({ t, inputLevel, receivedLevel: Math.min(receivedLevel, 1.8) });
+        timeline.push({ t, inputLevel, receivedLevel: Math.min(receivedLevel, RECEIVED_LEVEL_CLAMP) });
       }
 
       const x0 = 70;
@@ -330,18 +331,21 @@
         <text x="28" y="205" fill="#7f2610" font-size="16" font-family="Arial">Received pulses (sum of modes)</text>
       `;
 
+      let baseStatus = '';
       if (bitRateMbps > state.maxBitRateMbps * 1.05) {
-        signalStatus.textContent = 'Severe overlap: bit rate is above dispersion-limited bandwidth, so pulses merge (intersymbol interference).';
+        baseStatus = 'Severe overlap: bit rate is above dispersion-limited bandwidth, so pulses merge (intersymbol interference).';
       } else if (bitRateMbps > state.maxBitRateMbps * PARTIAL_OVERLAP_RATE_FRACTION) {
-        signalStatus.textContent = 'Partial overlap: some pulse broadening is visible. Reduce Δn or bit rate for clearer separation.';
+        baseStatus = 'Partial overlap: some pulse broadening is visible. Reduce Δn or bit rate for clearer separation.';
       } else {
-        signalStatus.textContent = 'Good separation: small pulse spreading relative to the bit period.';
+        baseStatus = 'Good separation: small pulse spreading relative to the bit period.';
       }
 
       const elapsed = (performance.now() - txStartTimestamp) / 1000;
       const currentBit = Math.floor(elapsed / Math.max(1e-9, bitPeriod));
       if (currentBit >= 0 && currentBit < bits.length) {
-        signalStatus.textContent += ` Now transmitting bit ${currentBit + 1} of ${bits.length}.`;
+        signalStatus.textContent = `${baseStatus} Now transmitting bit ${currentBit + 1} of ${bits.length}.`;
+      } else {
+        signalStatus.textContent = `${baseStatus} Transmission idle — press “Send bits down fibre” to replay.`;
       }
     }
 
