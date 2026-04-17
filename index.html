@@ -188,7 +188,7 @@
     function render() {
       const nCore = Number(coreInput.value);
       const deltaInput = Number(stepInput.value);
-      const maxDelta = Math.max(0.001, nCore - MIN_CLADDING_INDEX);
+      const maxDelta = Math.max(0, nCore - MIN_CLADDING_INDEX);
       const delta = Math.min(deltaInput, maxDelta);
       if (delta !== deltaInput) {
         stepInput.value = delta.toFixed(3);
