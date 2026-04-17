@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Optical Fibre Step-Index Simulator</title>
+  <title>Optical Fibre Dispersion Simulator</title>
   <style>
     :root {
       color-scheme: light;
@@ -17,14 +17,14 @@
     main {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 1rem;
+      padding: 1.2rem;
       display: grid;
-      gap: 1rem;
+      gap: 1.1rem;
     }
     .panel {
       background: white;
       border-radius: 12px;
-      padding: 1rem;
+      padding: 1.1rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
     h1, h2, p {
@@ -33,7 +33,7 @@
     .controls {
       display: grid;
       gap: 0.8rem;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     }
     label {
       display: grid;
@@ -58,7 +58,7 @@
       padding: 0.6rem 0.9rem;
       font-weight: 700;
       color: white;
-      background: #0f58b8;
+      background: #0d4aa4;
       cursor: pointer;
       width: fit-content;
     }
@@ -88,11 +88,17 @@
       height: auto;
       border-radius: 8px;
       border: 1px solid #dbe7fb;
-      background: #ebf3ff;
+      background: #eef5ff;
     }
     .note {
       font-size: 0.95rem;
       color: #344d72;
+    }
+    .subtle {
+      font-size: 0.92rem;
+      color: #496387;
+      margin-top: -0.35rem;
+      margin-bottom: 0.8rem;
     }
     .status {
       margin-top: 0.4rem;
@@ -106,7 +112,7 @@
   <main>
     <section class="panel">
       <h1>Optical Fibre Multipath Dispersion Simulator</h1>
-      <p>Animates multimode rays in a step-index fibre and sends a bit pattern to show when pulse spreading causes overlap.</p>
+      <p>One 10 km fibre with multiple ray paths. Red laser pulses launch together, then spread because higher-order modes take longer routes.</p>
       <div class="controls">
         <label>
           Core refractive index n<sub>core</sub>
@@ -119,16 +125,12 @@
           <input id="stepIndex" type="range" min="0.001" max="0.08" step="0.001" value="0.02" />
         </label>
         <label>
-          Fibre length (km)
-          <span id="lengthValue" class="value"></span>
-          <input id="lengthKm" type="range" min="0.1" max="10" step="0.1" value="2" />
-        </label>
-        <label>
           Number of ray paths
           <span id="rayValue" class="value"></span>
           <input id="rayCount" type="range" min="2" max="20" step="1" value="10" />
         </label>
       </div>
+      <p class="subtle">Fibre length is fixed at 10.0 km.</p>
     </section>
 
     <section class="panel">
@@ -139,11 +141,11 @@
     </section>
 
     <section class="panel">
-      <h2>Send bits and observe pulse overlap</h2>
+      <h2>Signal at launch vs signal after 10 km</h2>
       <div class="controls">
         <label>
           Bit pattern (0 and 1)
-          <input id="bitPattern" type="text" value="101101011" maxlength="24" />
+          <input id="bitPattern" type="text" value="1011" maxlength="24" />
         </label>
         <label>
           Bit rate
@@ -162,6 +164,7 @@
     <section class="panel">
       <h2>Calculated effects on information transfer</h2>
       <div class="metrics">
+        <div class="metric"><span>Fibre length</span><strong>10.0 km (fixed)</strong></div>
         <div class="metric"><span>Cladding index n<sub>cladding</sub></span><strong id="cladMetric"></strong></div>
         <div class="metric"><span>Maximum internal angle</span><strong id="angleMetric"></strong></div>
         <div class="metric"><span>Arrival-time spread</span><strong id="spreadMetric"></strong></div>
@@ -176,19 +179,19 @@
     const MIN_RAY_ANGLE = 1e-5;
     const MAX_ASIN_INPUT = 0.999999;
     const MIN_CLADDING_INDEX = 1.001;
+    const FIXED_FIBRE_LENGTH_METRES = 10000;
     const NYQUIST_SPREAD_FACTOR = 2;
     const SPREAD_TO_SIGMA_DIVISOR = 5;
     const MIN_SIGMA_FRACTION_OF_BIT_PERIOD = 0.08;
     const MAX_RECEIVED_LEVEL_SCALE = 1.4;
     const RECEIVED_LEVEL_CLAMP = 1.8;
     const PARTIAL_OVERLAP_RATE_FRACTION = 0.75;
-    const PHASE_SPREAD_FACTOR = 0.7;
     const BASE_ANIMATION_PERIOD_SECONDS = 2.4;
+    const ANIMATION_RESET_PAUSE_SECONDS = 0.55;
     const MIN_VISUAL_BIT_PERIOD_SECONDS = 1e-9;
 
     const coreInput = document.getElementById('coreIndex');
     const stepInput = document.getElementById('stepIndex');
-    const lengthInput = document.getElementById('lengthKm');
     const rayInput = document.getElementById('rayCount');
     const patternInput = document.getElementById('bitPattern');
     const bitRateInput = document.getElementById('bitRate');
@@ -196,7 +199,6 @@
 
     const coreValue = document.getElementById('coreValue');
     const stepValue = document.getElementById('stepValue');
-    const lengthValue = document.getElementById('lengthValue');
     const rayValue = document.getElementById('rayValue');
     const bitRateValue = document.getElementById('bitRateValue');
 
@@ -327,10 +329,10 @@
         <line x1="${x0}" y1="${outBottom}" x2="${x1}" y2="${outBottom}" stroke="#93add4" />
         ${bitGuides.join('')}
         ${bitLabels.join('')}
-        <path d="${inPath}" fill="none" stroke="#0d5abd" stroke-width="3" />
-        <path d="${outPath}" fill="none" stroke="#c23f18" stroke-width="3" />
-        <text x="28" y="60" fill="#0d3f87" font-size="16" font-family="Arial">Input bits</text>
-        <text x="28" y="205" fill="#7f2610" font-size="16" font-family="Arial">Received pulses (sum of modes)</text>
+        <path d="${inPath}" fill="none" stroke="#1b63c4" stroke-width="3" />
+        <path d="${outPath}" fill="none" stroke="#cf2e24" stroke-width="3" />
+        <text x="28" y="60" fill="#0d3f87" font-size="16" font-family="Arial">Launch signal (start)</text>
+        <text x="28" y="205" fill="#8e1d17" font-size="16" font-family="Arial">Received signal (end, broadened)</text>
       `;
 
       let baseStatus = '';
@@ -361,16 +363,15 @@
         const length = path.getTotalLength();
         const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         pulse.setAttribute('r', index === 0 ? '6' : '4');
-        pulse.setAttribute('fill', index === 0 ? '#ffd54a' : '#ffef9a');
-        pulse.setAttribute('stroke', '#d89e00');
+        pulse.setAttribute('fill', index === 0 ? '#ff4c41' : '#ff7a72');
+        pulse.setAttribute('stroke', '#b11d15');
         pulse.setAttribute('stroke-width', '1');
         pulseLayer.appendChild(pulse);
         rayAnimations.push({
           path,
           pulse,
           length,
-          factor: Number(path.getAttribute('data-time-factor')) || 1,
-          phase: (index / Math.max(1, paths.length - 1)) * PHASE_SPREAD_FACTOR
+          factor: Number(path.getAttribute('data-time-factor')) || 1
         });
       });
     }
@@ -413,7 +414,7 @@
       }
 
       const nClad = nCore - delta;
-      const length = Number(lengthInput.value) * 1000;
+      const length = FIXED_FIBRE_LENGTH_METRES;
       const rayCount = Number(rayInput.value);
       const bitRateMbps = Number(bitRateInput.value);
 
@@ -447,7 +448,6 @@
 
       coreValue.textContent = nCore.toFixed(3);
       stepValue.textContent = delta.toFixed(3);
-      lengthValue.textContent = `${Number(lengthInput.value).toFixed(1)} km`;
       rayValue.textContent = String(rayCount);
       bitRateValue.textContent = `${bitRateMbps.toFixed(0)} Mbit/s`;
 
@@ -455,7 +455,7 @@
       angleMetric.textContent = `${(thetaMax * 180 / Math.PI).toFixed(2)}°`;
       spreadMetric.textContent = `${(spread * 1e9).toFixed(3)} ns`;
       rateMetric.textContent = formatRate(maxBitRateMbps);
-      explanation.textContent = 'Smaller Δn gives a smaller acceptance angle and a narrower spread of mode delays, reducing pulse broadening and allowing higher data rates.';
+      explanation.textContent = 'All laser pulses launch together at the input. Longer zig-zag paths arrive later, so the pulse packet spreads out by the fibre end.';
 
       renderFibreGraphic(state);
       renderSignalGraph(state);
@@ -463,10 +463,17 @@
 
     function animate() {
       const now = performance.now() / 1000;
+      const maxFactor = rayAnimations.length > 0
+        ? Math.max(...rayAnimations.map((ray) => ray.factor))
+        : 1;
+      const travelWindow = BASE_ANIMATION_PERIOD_SECONDS * maxFactor;
+      const cycle = travelWindow + ANIMATION_RESET_PAUSE_SECONDS;
+      const elapsed = now % cycle;
+
       for (let i = 0; i < rayAnimations.length; i += 1) {
         const ray = rayAnimations[i];
         const period = BASE_ANIMATION_PERIOD_SECONDS * ray.factor;
-        const progress = (now / period + ray.phase) % 1;
+        const progress = elapsed >= travelWindow ? 0 : Math.min(elapsed / period, 1);
         const point = ray.path.getPointAtLength(progress * ray.length);
         ray.pulse.setAttribute('cx', point.x.toFixed(2));
         ray.pulse.setAttribute('cy', point.y.toFixed(2));
@@ -487,7 +494,7 @@
       }
     }
 
-    [coreInput, stepInput, lengthInput, rayInput, bitRateInput].forEach((input) => {
+    [coreInput, stepInput, rayInput, bitRateInput].forEach((input) => {
       input.addEventListener('input', render);
     });
 

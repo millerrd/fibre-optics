@@ -5,18 +5,18 @@ Interactive optical fibre simulation for AQA A-level Physics.
 ## GitHub Pages web app
 
 This repository contains a static web app (`index.html`) that runs on GitHub Pages.
-It models multipath dispersion in a **step-index optical fibre** and now includes animated
-light-pulse motion plus a bit-stream view that demonstrates intersymbol interference.
+It models multipath dispersion in a **single 10 km step-index optical fibre** with
+simultaneous red laser-pulse animation and a launch-vs-received signal plot.
 
 ### What the simulator shows
 
 - Core refractive index
 - Step index (`Δn = core index - cladding index`)
-- Fibre length
+- Fixed 10 km fibre length
 - Multiple ray paths in the core
-- Animated light pulses moving along each path
+- Animated red laser pulses launched together along each path
 - User-entered bit pattern transmission
-- Input-vs-received pulse plot showing overlap when bandwidth is exceeded
+- Start-vs-end signal plot showing pulse broadening and overlap when bandwidth is exceeded
 - Arrival-time spread from multipath dispersion
 - Estimated maximum bit rate from pulse spread
 - AQA-linked explanation of total internal reflection, multimode delay spread, and bandwidth
